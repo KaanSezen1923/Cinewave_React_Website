@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
+import Recommendations from './pages/Recommendations';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           {/* Korumalı (Sadece Giriş Yapmış Kullanıcılar İçin) Rotalar */}
           <Route element={<ProtectedRoute />}>
             <Route path="/favorites" element={<Favorites />} />
+            <Route path="/oneriler" element={<Recommendations />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
 

@@ -28,3 +28,13 @@ export const apiFetch = async (endpoint, options = {}) => {
 
     return response.json();
 };
+
+
+
+export const getRecommendations = () => {
+    return apiFetch('/recommendations');
+};
+
+export const markRecommendationsAsRead = () => {
+    return apiFetch('/recommendations/read', { method: 'PATCH' });
+};

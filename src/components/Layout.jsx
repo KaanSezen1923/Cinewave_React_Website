@@ -70,6 +70,14 @@ export default function Layout() {
                     )}
                     {user && (
                         <NavLink
+                            to="/oneriler"
+                            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+                        >
+                            Öneriler
+                        </NavLink>
+                    )}
+                    {user && (
+                        <NavLink
                             to="/profile"
                             className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
                         >
@@ -188,6 +196,15 @@ export default function Layout() {
                         >
                             <span className="link-icon">❤️</span>
                             <span>Favorilerim</span>
+                        </NavLink>
+                    )}
+                    {user && (
+                        <NavLink
+                            to="/oneriler"
+                            className={({ isActive }) => `mobile-drawer-link ${isActive ? "active" : ""}`}
+                        >
+                            <span className="link-icon">💡</span>
+                            <span>Öneriler</span>
                         </NavLink>
                     )}
                     {user && (
