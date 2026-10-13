@@ -94,6 +94,7 @@ export default function ChatPanel() {
     const [isWaiting, setIsWaiting] = useState(false);
     const [statusText, setStatusText] = useState("");
     const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
     const messagesEndRef = useRef(null);
 
     // Sidebar: Geçmiş sohbetler
@@ -156,13 +157,18 @@ export default function ChatPanel() {
     const resetChat = () => {
         setMessages([]);
         setSessionId(crypto.randomUUID());
+        setMobileSidebarOpen(false);
     };
 
     const loadSession = async (id) => {
-        if (id === sessionId) return;
+        if (id === sessionId) {
+            setMobileSidebarOpen(false);
+            return;
+        }
         setSessionId(id);
         setMessages([]);
         setIsWaiting(true);
+        setMobileSidebarOpen(false);
         try {
             const data = await apiFetch(`/chat/${id}`);
             setMessages(data.history || []);
@@ -189,9 +195,34 @@ export default function ChatPanel() {
 
     return (
         <div className="ai-console-wrapper animate-fade-in">
+            {/* MOBİL KARARTMA KATMANI */}
+            {user && (
+                <div
+                    className={`chat-sidebar-backdrop ${mobileSidebarOpen ? "open" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                    aria-hidden="true"
+                />
+            )}
+
             {/* SOL SİDEBAR - GEÇMİŞ SOHBETLER */}
             {user && (
-                <aside className="chat-sidebar">
+                <aside className={`chat-sidebar ${mobileSidebarOpen ? "open" : ""}`}>
+                    {/* Mobil Kapatma Başlığı */}
+                    <div className="chat-sidebar-mobile-header">
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, color: "#fff" }}>
+                            <span>💬</span>
+                            <span>Sohbet Geçmişi</span>
+                        </div>
+                        <button
+                            type="button"
+                            className="btn-chat-sidebar-close"
+                            onClick={() => setMobileSidebarOpen(false)}
+                            aria-label="Geçmişi Kapat"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
                     <button
                         type="button"
                         className="btn-new-chat"
@@ -242,6 +273,28 @@ export default function ChatPanel() {
 
             {/* SAĞ TARAF - SOHBET VE MESAJ ALANI */}
             <main className="chat-main-area">
+                {/* MOBİL ÜST KONTROL ÇUBUĞU (GEÇMİŞ & YENİ BUTONLARI) */}
+                {user && (
+                    <div className="chat-mobile-header">
+                        <button
+                            type="button"
+                            className="chat-mobile-history-btn"
+                            onClick={() => setMobileSidebarOpen(true)}
+                        >
+                            <span>💬</span>
+                            <span>Geçmiş ({sessions.length})</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="chat-mobile-new-btn"
+                            onClick={resetChat}
+                            disabled={isWaiting}
+                        >
+                            <span>✨</span>
+                            <span>Yeni</span>
+                        </button>
+                    </div>
+                )}
                 <div className="chat-messages-container" aria-live="polite">
                     {messages.length === 0 ? (
                         <div className="chat-empty-hero">
