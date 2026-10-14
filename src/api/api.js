@@ -23,7 +23,14 @@ export const apiFetch = async (endpoint, options = {}) => {
             window.dispatchEvent(new Event("unauthorized"));
         }
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "API isteğinde bir hata oluştu");
+        const detailMsg = typeof errorData.detail === "string"
+            ? errorData.detail
+            : (Array.isArray(errorData.detail)
+                ? errorData.detail.map(d => d.msg || JSON.stringify(d)).join(", ")
+                : (typeof errorData.detail === "object" && errorData.detail !== null
+                    ? JSON.stringify(errorData.detail)
+                    : "API isteğinde bir hata oluştu"));
+        throw new Error(detailMsg);
     }
 
     return response.json();
@@ -37,4 +44,25 @@ export const getRecommendations = () => {
 
 export const markRecommendationsAsRead = () => {
     return apiFetch('/recommendations/read', { method: 'PATCH' });
+};
+
+export const getFeedbackIds = () => {
+    return apiFetch('/feedback/ids');
+};
+
+export const getFeedbackStats = () => {
+    return apiFetch('/feedback/stats');
+};
+
+export const sendFeedback = ({ movieId, title, feedback, source = "chat", sessionId = null }) => {
+    return apiFetch('/feedback', {
+        method: 'POST',
+        body: JSON.stringify({
+            movie_id: String(movieId),
+            title,
+            feedback,
+            source,
+            session_id: sessionId,
+        }),
+    });
 };

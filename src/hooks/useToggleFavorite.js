@@ -10,17 +10,32 @@ export function useToggleFavorite() {
         mutationFn: async ({ item, isFavorite }) => {
             if (!user) throw new Error("Giriş yapmalısınız.");
 
+            const mediaType = item.mediaType || (item.name ? "tv" : "movie");
+            const itemId = String(item.id);
+
+            try {
+                const types = JSON.parse(localStorage.getItem("cinewave_media_types") || "{}");
+                if (isFavorite) {
+                    delete types[itemId];
+                } else {
+                    types[itemId] = mediaType;
+                }
+                localStorage.setItem("cinewave_media_types", JSON.stringify(types));
+            } catch (e) {
+                console.error("Local media type error:", e);
+            }
+
             if (isFavorite) {
                 return apiFetch(`/favorites/${encodeURIComponent(item.id)}`, { method: "DELETE" });
             } else {
                 return apiFetch("/favorites", {
                     method: "POST",
                     body: JSON.stringify({
-                        movie_id: String(item.id),
-                        title: item.title,
+                        movie_id: itemId,
+                        title: item.title || item.name,
                         poster_url: item.posterUrl,
                         imdb_rating: String(item.rating),
-                        media_type: item.mediaType || "movie"
+                        media_type: mediaType,
                     }),
                 });
             }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getRecommendations, markRecommendationsAsRead } from '../api/api';
 import { Skeleton } from '../components/Skeleton';
 import { ErrorBox } from '../components/ErrorBox';
+import { FeedbackButtons } from '../components/FeedbackButtons';
 
 const Recommendations = () => {
     const [recommendations, setRecommendations] = useState([]);
@@ -171,7 +172,7 @@ const Recommendations = () => {
                                     {rec.body}
                                 </p>
 
-                                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                <div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                                     <Link
                                         to={`/film/${encodeURIComponent(rec.title)}`}
                                         className="btn-secondary"
@@ -180,6 +181,13 @@ const Recommendations = () => {
                                         <span>Detayları Gör</span>
                                         <span>→</span>
                                     </Link>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>Öneriyi Değerlendir:</span>
+                                        <FeedbackButtons
+                                            movie={{ movie_id: rec.movie_id, title: rec.title }}
+                                            source="push"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         );

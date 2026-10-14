@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../api/api";
 import { useAuth } from "../context/AuthContext";
@@ -14,6 +14,9 @@ const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2
 export default function DetailPage({ mediaType }) {
     const { id } = useParams();
     const rawId = decodeURIComponent(id || "").trim();
+    const location = useLocation();
+    const passedMediaType = location.state?.mediaType;
+    const expectedTitle = location.state?.title;
     const { user } = useAuth();
 
     const { data: favoriteIds = [], refetch: refetchFavoriteIds } = useFavoriteIds();
@@ -21,12 +24,20 @@ export default function DetailPage({ mediaType }) {
 
     // Detay verisini çekme (Hem sayısal TMDB ID'leri hem de favorilerden gelen film adlarını destekler)
     const { data, isLoading, error } = useQuery({
-        queryKey: ["detail", mediaType, rawId],
+        queryKey: ["detail", mediaType, rawId, passedMediaType],
         queryFn: async () => {
             if (!rawId) throw new Error("Geçerli bir içerik kimliği belirtilmedi.");
 
             let targetId = rawId;
-            let targetMediaType = mediaType || "movie";
+            let targetMediaType = passedMediaType || mediaType || "movie";
+
+            // LocalStorage'daki media_type haritasını kontrol et
+            try {
+                const types = JSON.parse(localStorage.getItem("cinewave_media_types") || "{}");
+                if (types[rawId]) {
+                    targetMediaType = types[rawId];
+                }
+            } catch { }
 
             // Eğer ID sayısal değilse (örneğin favorilerde film adı kayıtlıysa), TMDB'de ara
             if (!/^\d+$/.test(rawId)) {
@@ -42,7 +53,52 @@ export default function DetailPage({ mediaType }) {
             }
 
             // Sayısal TMDB ID ile detay endpoint'ini çağır
-            const detailData = await apiFetch(`/catalog/${targetMediaType}/${targetId}`);
+            let detailData = null;
+            try {
+                detailData = await apiFetch(`/catalog/${targetMediaType}/${targetId}`);
+            } catch (err) {
+                // Eğer ilk deneme başarısızsa alternatif medyayı dene (movie <-> tv)
+                const fallbackMediaType = targetMediaType === "movie" ? "tv" : "movie";
+                try {
+                    detailData = await apiFetch(`/catalog/${fallbackMediaType}/${targetId}`);
+                    targetMediaType = fallbackMediaType;
+                } catch {
+                    throw err;
+                }
+            }
+
+            // Akıllı Başlık Doğrulaması:
+            // Eğer favorilerden bir başlık aktarılmışsa ve gelen yapımın başlığı uyuşmuyorsa,
+            // diğer medyayı (örn. /catalog/tv/{id}) kontrol et
+            if (expectedTitle && detailData) {
+                const fetchedTitle = (detailData.title || detailData.name || "").toLowerCase().trim();
+                const cleanExpected = expectedTitle.toLowerCase().trim();
+                const isMatch = fetchedTitle === cleanExpected ||
+                    fetchedTitle.includes(cleanExpected) ||
+                    cleanExpected.includes(fetchedTitle);
+
+                if (!isMatch) {
+                    const altMediaType = targetMediaType === "movie" ? "tv" : "movie";
+                    try {
+                        const altData = await apiFetch(`/catalog/${altMediaType}/${targetId}`);
+                        const altTitle = (altData.title || altData.name || "").toLowerCase().trim();
+                        if (altTitle === cleanExpected || altTitle.includes(cleanExpected) || cleanExpected.includes(altTitle)) {
+                            detailData = altData;
+                            targetMediaType = altMediaType;
+                        }
+                    } catch {
+                        // alternatif yoksa mevcutla devam et
+                    }
+                }
+            }
+
+            // Başarıyla çözülen media_type'ı sonraki ziyaretler için kaydet
+            try {
+                const types = JSON.parse(localStorage.getItem("cinewave_media_types") || "{}");
+                types[targetId] = targetMediaType;
+                localStorage.setItem("cinewave_media_types", JSON.stringify(types));
+            } catch { }
+
             return {
                 ...detailData,
                 resolvedId: targetId,
@@ -119,9 +175,21 @@ export default function DetailPage({ mediaType }) {
     const handleFavClick = async () => {
         if (!user) return alert("Favorilere eklemek için giriş yapmalısınız.");
         try {
+            const itemId = String(activeId);
+            try {
+                const types = JSON.parse(localStorage.getItem("cinewave_media_types") || "{}");
+                if (isFavorite) {
+                    delete types[itemId];
+                    delete types[String(rawId)];
+                } else {
+                    types[itemId] = activeMediaType;
+                }
+                localStorage.setItem("cinewave_media_types", JSON.stringify(types));
+            } catch { }
+
             if (isFavorite) {
                 // Veritabanında rawId veya activeId kayıtlı olabilir
-                const idToDelete = favoriteIds.includes(String(rawId)) ? rawId : String(activeId);
+                const idToDelete = favoriteIds.includes(String(rawId)) ? rawId : itemId;
                 await apiFetch(`/favorites/${encodeURIComponent(idToDelete)}`, { method: "DELETE" });
             } else {
                 await apiFetch("/favorites", {
@@ -248,7 +316,13 @@ export default function DetailPage({ mediaType }) {
                     </h3>
                     <div className="cast-slider">
                         {cast.map((actor) => (
-                            <div key={actor.id} className="cast-card">
+                            <Link
+                                key={actor.id}
+                                to={`/oyuncu/${actor.id}`}
+                                className="cast-card"
+                                style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}
+                                title={`${actor.name} - Tüm yapımlarını incele`}
+                            >
                                 <img
                                     src={actor.photo || actor.profile_path ? (actor.photo || `https://image.tmdb.org/t/p/w185${actor.profile_path}`) : FALLBACK_POSTER}
                                     alt={actor.name}
@@ -263,7 +337,7 @@ export default function DetailPage({ mediaType }) {
                                         {actor.character}
                                     </p>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </section>

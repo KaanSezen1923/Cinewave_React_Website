@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 import { ErrorBox } from "../components/ErrorBox";
+import { FeedbackButtons } from "../components/FeedbackButtons";
 
 export default function Profile() {
     const { user, login } = useAuth();
@@ -59,7 +60,7 @@ export default function Profile() {
     const { mutate: deleteSession } = useMutation({
         mutationFn: (sessionId) => apiFetch(`/chat/${sessionId}`, { method: "DELETE" }),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: ["sessions"] })
         }
     });
 
@@ -125,74 +126,15 @@ export default function Profile() {
                     </div>
                 </div>
 
-                {/* Sağ Panel: Sana Özel Öneriler ve Geçmiş */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                    <div className="glass-panel" style={{ padding: "24px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                            <h3 style={{ fontSize: "1.2rem", display: "flex", alignItems: "center", gap: "8px" }}>
-                                <span>🔔</span> Sana Özel Bildirimler
-                            </h3>
-                            {recs?.some(r => !r.is_read) && (
-                                <button onClick={markAsRead} className="btn-secondary" style={{ padding: "4px 10px", fontSize: "0.8rem" }}>
-                                    Tümünü Okundu Say
-                                </button>
-                            )}
-                        </div>
-                        <div style={{ maxHeight: "260px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {recs?.length > 0 ? recs.map(r => (
-                                <div
-                                    key={r.id}
-                                    style={{
-                                        padding: "12px",
-                                        background: r.is_read ? "rgba(255,255,255,0.02)" : "rgba(229,9,20,0.1)",
-                                        border: "1px solid var(--border-subtle)",
-                                        borderRadius: "var(--radius-sm)"
-                                    }}
-                                >
-                                    <p style={{ fontWeight: r.is_read ? 500 : 700, marginBottom: "4px" }}>{r.title}</p>
-                                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>{r.body}</p>
-                                </div>
-                            )) : (
-                                <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Henüz yeni bir öneri bildirimi yok.</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="glass-panel" style={{ padding: "24px" }}>
-                        <h3 style={{ fontSize: "1.2rem", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span>💬</span> AI Sohbet Geçmişi
-                        </h3>
-                        <div style={{ maxHeight: "260px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {sessionsData?.sessions?.length > 0 ? sessionsData.sessions.map(s => (
-                                <div
-                                    key={s.session_id}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        padding: "10px 14px",
-                                        background: "rgba(255,255,255,0.02)",
-                                        border: "1px solid var(--border-subtle)",
-                                        borderRadius: "var(--radius-sm)"
-                                    }}
-                                >
-                                    <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", maxWidth: "80%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                        {s.title}
-                                    </span>
-                                    <button
-                                        onClick={() => deleteSession(s.session_id)}
-                                        style={{ background: "transparent", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "0.85rem" }}
-                                    >
-                                        Sil
-                                    </button>
-                                </div>
-                            )) : (
-                                <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Kayıtlı sohbet geçmişi bulunmuyor.</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
             </div>
-        </div>
+
+
+
+
+
+
+
+
+        </div >
     );
 }

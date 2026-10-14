@@ -56,12 +56,21 @@ export const adaptChatCard = (item) => {
 
 export const adaptFavoriteCard = (item) => {
     if (!item) return {};
+    const id = String(item.movie_id || item.id);
+    let localType = null;
+    try {
+        const types = JSON.parse(localStorage.getItem("cinewave_media_types") || "{}");
+        localType = types[id];
+    } catch { }
+
+    const mediaType = item.media_type || item.mediaType || localType || (item.name ? "tv" : "movie");
+
     return {
-        id: String(item.movie_id || item.id),
+        id,
         title: item.Film || item.title || item.name || "İsimsiz",
         posterUrl: extractPoster(item),
         rating: formatRating(item["TMDB Puanı"] ?? item.imdb_rating ?? item.rating ?? item.vote_average),
         year: extractYear(item),
-        mediaType: item.media_type || item.mediaType || "movie",
+        mediaType,
     };
 };

@@ -44,7 +44,7 @@ export default function BrowsePage({ mediaType }) {
 
             const response = await apiFetch(endpoint);
             return {
-                results: (response.results || []).map(adaptCatalogCard),
+                results: (response.results || []).map(item => adaptCatalogCard({ ...item, media_type: item.media_type || mediaType })),
                 totalPages: response.total_pages || 1,
             };
         },

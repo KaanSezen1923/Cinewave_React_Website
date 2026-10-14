@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api/api";
 import { adaptChatCard } from "../utils/adapters";
 import { MovieCard } from "./MovieCard";
+import { FeedbackButtons } from "./FeedbackButtons";
 import { useAuth } from "../context/AuthContext";
 
 /* Varsayılan İlham Verici Öneriler */
@@ -33,7 +34,7 @@ function parseAssistantContent(content) {
     return { text: content, movies: [] };
 }
 
-function RecommendationCard({ movie }) {
+function RecommendationCard({ movie, sessionId }) {
     const card = adaptChatCard(movie);
     const reason = movie["Neden Önerildi"] || movie.reason || "Zevkine göre özenle seçildi.";
     const genres = movie["Türler"];
@@ -51,22 +52,29 @@ function RecommendationCard({ movie }) {
                 <p className="recommendation-reason">
                     “{reason}”
                 </p>
-                <div className="recommendation-meta">
+                <div className="recommendation-meta" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
                     {genres && (
                         <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
                             🏷️ {genres}
                         </span>
                     )}
-                    <Link to={detailLink} className="recommendation-link">
-                        Detayları İncele →
-                    </Link>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
+                        <FeedbackButtons
+                            movie={movie}
+                            source="chat"
+                            sessionId={sessionId}
+                        />
+                        <Link to={detailLink} className="recommendation-link">
+                            Detayları İncele →
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
     );
 }
 
-function AssistantMessage({ content }) {
+function AssistantMessage({ content, sessionId }) {
     const { text, movies } = parseAssistantContent(content);
     return (
         <div>
@@ -78,7 +86,7 @@ function AssistantMessage({ content }) {
             {movies.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                     {movies.map((m, idx) => (
-                        <RecommendationCard key={m.movie_id || m.id || idx} movie={m} />
+                        <RecommendationCard key={m.movie_id || m.id || idx} movie={m} sessionId={sessionId} />
                     ))}
                 </div>
             )}
@@ -367,7 +375,7 @@ export default function ChatPanel() {
                                 )}
                                 <div className="chat-bubble-content">
                                     {msg.role === "assistant" ? (
-                                        <AssistantMessage content={msg.content} />
+                                        <AssistantMessage content={msg.content} sessionId={sessionId} />
                                     ) : (
                                         <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{msg.content}</p>
                                     )}

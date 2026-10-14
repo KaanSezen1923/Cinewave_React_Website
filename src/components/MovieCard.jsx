@@ -38,7 +38,11 @@ export function MovieCard({ item }) {
                 </button>
             )}
 
-            <Link to={targetPath} style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", height: "100%" }}>
+            <Link
+                to={targetPath}
+                state={{ mediaType: item.mediaType, title: item.title }}
+                style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", height: "100%" }}
+            >
                 <div className="movie-poster-wrap">
                     <img
                         src={displayPoster}

@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import Recommendations from './pages/Recommendations';
+import ActorPage from './pages/ActorPage';
 
 function App() {
   return (
@@ -24,6 +25,9 @@ function App() {
           {/* İçerik Detay Rotaları */}
           <Route path="/film/:id" element={<DetailPage mediaType="movie" key="movie-detail" />} />
           <Route path="/dizi/:id" element={<DetailPage mediaType="tv" key="tv-detail" />} />
+
+          {/* Oyuncu Detay ve Filmografi Rotası */}
+          <Route path="/oyuncu/:id" element={<ActorPage />} />
 
           {/* Keşfet ve Kimlik Doğrulama Rotaları */}
           <Route path="/discover" element={<Discover />} />

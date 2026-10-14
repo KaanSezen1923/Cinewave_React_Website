@@ -773,12 +773,25 @@
   overflow: hidden;
   text-align: center;
   padding-bottom: 8px;
+  transition: all var(--transition-fast);
+  display: block;
+}
+
+.cast-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(229, 9, 20, 0.6);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+.cast-card:hover .cast-photo {
+  transform: scale(1.05);
 }
 
 .cast-photo {
   width: 100%;
   aspect-ratio: 1 / 1.3;
   object-fit: cover;
+  transition: transform var(--transition-fast);
 }
 
 /* Chat Paneli & AI Asistan Konsolu (Tam Ekran) */
