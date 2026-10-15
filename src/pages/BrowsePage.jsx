@@ -5,6 +5,7 @@ import { adaptCatalogCard } from "../utils/adapters";
 import { MovieGrid } from "../components/MovieGrid";
 import { Skeleton } from "../components/Skeleton";
 import { ErrorBox } from "../components/ErrorBox";
+import SearchAutocomplete from "../components/SearchAutocomplete";
 
 export default function BrowsePage({ mediaType }) {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -57,10 +58,7 @@ export default function BrowsePage({ mediaType }) {
         setSearchParams({ ...current, ...newParams, page: newParams.page || "1" });
     };
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        const form = e.target;
-        const q = form.elements.searchInput.value.trim();
+    const handleSearch = (q) => {
         updateParams({ query: q, genre: "" });
     };
 
@@ -77,15 +75,13 @@ export default function BrowsePage({ mediaType }) {
 
             {/* Kontrol Paneli (Arama ve Filtreler) */}
             <div className="filter-bar">
-                <form onSubmit={handleSearch} className="search-box">
-                    <input
-                        name="searchInput"
-                        defaultValue={query}
-                        placeholder={mediaType === "movie" ? "Film ara..." : "Dizi ara..."}
-                        className="search-input"
-                    />
-                    <button type="submit" className="search-btn">Bul</button>
-                </form>
+                <SearchAutocomplete
+                    initialValue={query}
+                    mediaType={mediaType}
+                    placeholder={mediaType === "movie" ? "Film ara... (örn: Matrix, Inception)" : "Dizi ara... (örn: Breaking Bad, Dark)"}
+                    onSearch={handleSearch}
+                    variant="page"
+                />
 
                 {!query && (
                     <>

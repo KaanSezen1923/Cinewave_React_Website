@@ -8,6 +8,7 @@ import { Skeleton } from "../components/Skeleton";
 import { ErrorBox } from "../components/ErrorBox";
 import { MovieGrid } from "../components/MovieGrid";
 import { adaptCatalogCard } from "../utils/adapters";
+import { buildProviderUrl, dedupeProviders, indexDirectLinks } from "../utils/providerLinks";
 
 const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750"><rect width="500" height="750" fill="%23151824"/><circle cx="250" cy="330" r="50" fill="none" stroke="%23334155" stroke-width="6"/><path d="M235 310 L275 330 L235 350 Z" fill="%23475569"/><text x="50%" y="430" font-family="-apple-system,sans-serif" font-size="20" font-weight="600" fill="%2364748b" text-anchor="middle">Afiş Bulunamadı</text></svg>`;
 
@@ -120,6 +121,16 @@ export default function DetailPage({ mediaType }) {
         enabled: !!activeId && /^\d+$/.test(String(activeId)),
     });
 
+    // Platformlardaki doğrudan başlık linkleri (backend /watch-links). Hata olursa
+    // sessizce arama linklerine düşülür, bu yüzden retry kapalı ve hata UI'ı yok.
+    const { data: watchLinks } = useQuery({
+        queryKey: ["watch-links", activeMediaType, activeId],
+        queryFn: () => apiFetch(`/catalog/${activeMediaType}/${activeId}/watch-links`),
+        staleTime: 1000 * 60 * 60 * 24,
+        retry: 0,
+        enabled: !!activeId && /^\d+$/.test(String(activeId)),
+    });
+
     if (isLoading) {
         return (
             <div className="page-container animate-fade-in" style={{ padding: "40px 20px", textAlign: "center" }}>
@@ -168,7 +179,11 @@ export default function DetailPage({ mediaType }) {
         photo: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
     })) || [];
     const trailerKey = data.trailer || data.videos?.results?.find(v => v.site === "YouTube" && v.type === "Trailer")?.key;
-    const providers = data.providers?.flatrate || data["watch/providers"]?.results?.TR?.flatrate || [];
+    const providers = dedupeProviders(
+        data.providers?.flatrate || data["watch/providers"]?.results?.TR?.flatrate || []
+    );
+    const justWatchLink = data["watch/providers"]?.results?.TR?.link || data.providers?.link;
+    const directLinks = indexDirectLinks(watchLinks?.options);
     const seasons = data.seasons || [];
     const similarItems = (similarData?.results || []).map(adaptCatalogCard);
 
@@ -287,23 +302,32 @@ export default function DetailPage({ mediaType }) {
                         <span>📺</span> Türkiye'de Nereden İzlenir?
                     </h3>
                     <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-                        {providers.map((p, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "10px",
-                                    padding: "8px 16px",
-                                    background: "var(--bg-card)",
-                                    border: "1px solid var(--border-subtle)",
-                                    borderRadius: "var(--radius-sm)"
-                                }}
-                            >
-                                {p.logo && <img src={p.logo} alt={p.name} style={{ width: "28px", height: "28px", borderRadius: "6px" }} />}
-                                <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>{p.name}</span>
-                            </div>
-                        ))}
+                        {providers.map((p) => {
+                            const pName = p.name || p.provider_name || "Platform";
+                            const pId = p.provider_id ?? p.id;
+                            const pLogo = p.logo
+                                ? (p.logo.startsWith("http") ? p.logo : `https://image.tmdb.org/t/p/w92${p.logo}`)
+                                : (p.logo_path ? `https://image.tmdb.org/t/p/w92${p.logo_path}` : null);
+                            const targetUrl = buildProviderUrl(
+                                { id: pId, name: pName },
+                                { title, year, mediaType: activeMediaType, justWatchLink, directLinks }
+                            );
+
+                            return (
+                                <a
+                                    key={pId ?? pName}
+                                    href={targetUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="provider-badge-link"
+                                    title={`${pName} üzerinde "${title}" ara ve izle (Yeni sekmede açılır)`}
+                                >
+                                    {pLogo && <img src={pLogo} alt="" style={{ width: "28px", height: "28px", borderRadius: "6px" }} />}
+                                    <span>{pName}</span>
+                                    <span className="provider-arrow">↗</span>
+                                </a>
+                            );
+                        })}
                     </div>
                 </section>
             )}
