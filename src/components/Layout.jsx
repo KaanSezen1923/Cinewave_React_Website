@@ -34,7 +34,7 @@ export default function Layout() {
             overflow: isDiscover ? "hidden" : "visible"
         }}>
             <header className="navbar" style={{ flexShrink: 0 }}>
-                <Link to="/discover" className="nav-brand">
+                <Link to="/" className="nav-brand">
                     <div className="nav-brand-icon">▶</div>
                     <span>CineWave</span>
                 </Link>
@@ -42,14 +42,20 @@ export default function Layout() {
                 {/* Masaüstü Navigasyon Linkleri */}
                 <nav className="nav-links">
                     <NavLink
+                        to="/"
+                        end
+                        className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+                    >
+                        Vitrin
+                    </NavLink>
+                    <NavLink
                         to="/discover"
                         className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
                     >
-                        Keşfet
+                        AI Keşfet
                     </NavLink>
                     <NavLink
-                        to="/"
-                        end
+                        to="/filmler"
                         className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
                     >
                         Filmler
@@ -168,6 +174,14 @@ export default function Layout() {
 
                 <div className="mobile-drawer-links">
                     <NavLink
+                        to="/"
+                        end
+                        className={({ isActive }) => `mobile-drawer-link ${isActive ? "active" : ""}`}
+                    >
+                        <span className="link-icon">🍿</span>
+                        <span>Vitrin</span>
+                    </NavLink>
+                    <NavLink
                         to="/discover"
                         className={({ isActive }) => `mobile-drawer-link ${isActive ? "active" : ""}`}
                     >
@@ -175,8 +189,7 @@ export default function Layout() {
                         <span>AI Keşfet</span>
                     </NavLink>
                     <NavLink
-                        to="/"
-                        end
+                        to="/filmler"
                         className={({ isActive }) => `mobile-drawer-link ${isActive ? "active" : ""}`}
                     >
                         <span className="link-icon">🎬</span>

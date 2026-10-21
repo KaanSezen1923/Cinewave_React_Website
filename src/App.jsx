@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import HomePage from "./pages/HomePage";
 import BrowsePage from "./pages/BrowsePage";
 import DetailPage from "./pages/DetailPage";
 import Discover from "./pages/Discover";
@@ -10,16 +11,18 @@ import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
-import Recommendations from './pages/Recommendations';
-import ActorPage from './pages/ActorPage';
+import Recommendations from "./pages/Recommendations";
+import ActorPage from "./pages/ActorPage";
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
         <Route element={<Layout />}>
-          {/* Ana Gözatma (Katalog) Rotaları */}
-          <Route path="/" element={<BrowsePage mediaType="movie" key="movie" />} />
+          {/* Vitrin (Ana Sayfa Karuselleri) ve Katalog Rotaları */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/vitrin" element={<HomePage />} />
+          <Route path="/filmler" element={<BrowsePage mediaType="movie" key="movie" />} />
           <Route path="/tv" element={<BrowsePage mediaType="tv" key="tv" />} />
 
           {/* İçerik Detay Rotaları */}

@@ -1,6 +1,7 @@
+import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "../api/api";
+import { apiFetch, getTvSeasonDetail } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 import { useFavoriteIds } from "../hooks/useFavoriteIds";
 import { useToggleFavorite } from "../hooks/useToggleFavorite";
@@ -12,6 +13,23 @@ import { buildProviderUrl, dedupeProviders, indexDirectLinks } from "../utils/pr
 
 const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750"><rect width="500" height="750" fill="%23151824"/><circle cx="250" cy="330" r="50" fill="none" stroke="%23334155" stroke-width="6"/><path d="M235 310 L275 330 L235 350 Z" fill="%23475569"/><text x="50%" y="430" font-family="-apple-system,sans-serif" font-size="20" font-weight="600" fill="%2364748b" text-anchor="middle">Afiş Bulunamadı</text></svg>`;
 
+const FALLBACK_STILL = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="%23141824"/><circle cx="160" cy="82" r="24" fill="none" stroke="%23334155" stroke-width="3"/><path d="M153 72 L173 82 L153 92 Z" fill="%23475569"/><text x="50%" y="135" font-family="-apple-system,sans-serif" font-size="12" font-weight="600" fill="%2364748b" text-anchor="middle">Bölüm Görseli Yok</text></svg>`;
+
+function formatTurkishDate(dateStr) {
+    if (!dateStr) return "";
+    try {
+        const dt = new Date(dateStr);
+        if (isNaN(dt.getTime())) return dateStr;
+        return dt.toLocaleDateString("tr-TR", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+        });
+    } catch {
+        return dateStr;
+    }
+}
+
 export default function DetailPage({ mediaType }) {
     const { id } = useParams();
     const rawId = decodeURIComponent(id || "").trim();
@@ -21,7 +39,10 @@ export default function DetailPage({ mediaType }) {
     const { user } = useAuth();
 
     const { data: favoriteIds = [], refetch: refetchFavoriteIds } = useFavoriteIds();
-    const { mutate: toggleFavorite } = useToggleFavorite();
+    useToggleFavorite();
+
+    const [selectedSeason, setSelectedSeason] = useState(null);
+    const [episodeSearch, setEpisodeSearch] = useState("");
 
     // Detay verisini çekme (Hem sayısal TMDB ID'leri hem de favorilerden gelen film adlarını destekler)
     const { data, isLoading, error } = useQuery({
@@ -68,13 +89,12 @@ export default function DetailPage({ mediaType }) {
                 }
             }
 
-            // Akıllı Başlık Doğrulaması:
-            // Eğer favorilerden bir başlık aktarılmışsa ve gelen yapımın başlığı uyuşmuyorsa,
-            // diğer medyayı (örn. /catalog/tv/{id}) kontrol et
+            // Akıllı Başlık Doğrulaması
             if (expectedTitle && detailData) {
                 const fetchedTitle = (detailData.title || detailData.name || "").toLowerCase().trim();
                 const cleanExpected = expectedTitle.toLowerCase().trim();
-                const isMatch = fetchedTitle === cleanExpected ||
+                const isMatch =
+                    fetchedTitle === cleanExpected ||
                     fetchedTitle.includes(cleanExpected) ||
                     cleanExpected.includes(fetchedTitle);
 
@@ -83,7 +103,11 @@ export default function DetailPage({ mediaType }) {
                     try {
                         const altData = await apiFetch(`/catalog/${altMediaType}/${targetId}`);
                         const altTitle = (altData.title || altData.name || "").toLowerCase().trim();
-                        if (altTitle === cleanExpected || altTitle.includes(cleanExpected) || cleanExpected.includes(altTitle)) {
+                        if (
+                            altTitle === cleanExpected ||
+                            altTitle.includes(cleanExpected) ||
+                            cleanExpected.includes(altTitle)
+                        ) {
                             detailData = altData;
                             targetMediaType = altMediaType;
                         }
@@ -112,6 +136,36 @@ export default function DetailPage({ mediaType }) {
 
     const activeId = data?.resolvedId || data?.id;
     const activeMediaType = data?.resolvedMediaType || mediaType || "movie";
+    const seasons = data?.seasons || [];
+
+    // Dizi yüklendiğinde varsayılan olarak 1. sezonu (veya mevcut ilk sezonu) seç
+    useEffect(() => {
+        if (activeMediaType === "tv" && seasons.length > 0) {
+            const firstRegularSeason =
+                seasons.find((s) => Number(s.season_number) > 0) || seasons[0];
+            setSelectedSeason(firstRegularSeason?.season_number ?? null);
+            setEpisodeSearch("");
+        } else {
+            setSelectedSeason(null);
+        }
+    }, [activeId, activeMediaType, seasons.length]);
+
+    // Seçili sezonun bölüm rehberini çekme (GET /catalog/tv/{id}/season/{season_number})
+    const {
+        data: seasonDetail,
+        isLoading: isSeasonLoading,
+        error: seasonError,
+    } = useQuery({
+        queryKey: ["tv-season", activeId, selectedSeason],
+        queryFn: () => getTvSeasonDetail(activeId, selectedSeason),
+        staleTime: 1000 * 60 * 30,
+        enabled:
+            activeMediaType === "tv" &&
+            !!activeId &&
+            /^\d+$/.test(String(activeId)) &&
+            selectedSeason !== null &&
+            selectedSeason !== undefined,
+    });
 
     // Benzer yapımları çekme
     const { data: similarData } = useQuery({
@@ -121,8 +175,7 @@ export default function DetailPage({ mediaType }) {
         enabled: !!activeId && /^\d+$/.test(String(activeId)),
     });
 
-    // Platformlardaki doğrudan başlık linkleri (backend /watch-links). Hata olursa
-    // sessizce arama linklerine düşülür, bu yüzden retry kapalı ve hata UI'ı yok.
+    // Platformlardaki doğrudan başlık linkleri (backend /watch-links)
     const { data: watchLinks } = useQuery({
         queryKey: ["watch-links", activeMediaType, activeId],
         queryFn: () => apiFetch(`/catalog/${activeMediaType}/${activeId}/watch-links`),
@@ -158,8 +211,9 @@ export default function DetailPage({ mediaType }) {
 
     if (!data) return null;
 
-    // Favori durumu kontrolü (hem sayısal ID hem de orijinal rawId ile eşleşme)
-    const isFavorite = favoriteIds.includes(String(activeId)) ||
+    // Favori durumu kontrolü
+    const isFavorite =
+        favoriteIds.includes(String(activeId)) ||
         favoriteIds.includes(String(rawId)) ||
         favoriteIds.includes(String(data.title));
 
@@ -184,8 +238,24 @@ export default function DetailPage({ mediaType }) {
     );
     const justWatchLink = data["watch/providers"]?.results?.TR?.link || data.providers?.link;
     const directLinks = indexDirectLinks(watchLinks?.options);
-    const seasons = data.seasons || [];
     const similarItems = (similarData?.results || []).map(adaptCatalogCard);
+
+    const rawEpisodes = seasonDetail?.episodes || [];
+    const filteredEpisodes = episodeSearch.trim()
+        ? rawEpisodes.filter((ep) => {
+            const q = episodeSearch.toLowerCase();
+            return (
+                String(ep.episode_number).includes(q) ||
+                (ep.name || "").toLowerCase().includes(q) ||
+                (ep.overview || "").toLowerCase().includes(q)
+            );
+        })
+        : rawEpisodes;
+
+    const handleSeasonClick = (seasonNumber) => {
+        setSelectedSeason((prev) => (prev === seasonNumber ? null : seasonNumber));
+        setEpisodeSearch("");
+    };
 
     const handleFavClick = async () => {
         if (!user) return alert("Favorilere eklemek için giriş yapmalısınız.");
@@ -203,7 +273,6 @@ export default function DetailPage({ mediaType }) {
             } catch { }
 
             if (isFavorite) {
-                // Veritabanında rawId veya activeId kayıtlı olabilir
                 const idToDelete = favoriteIds.includes(String(rawId)) ? rawId : itemId;
                 await apiFetch(`/favorites/${encodeURIComponent(idToDelete)}`, { method: "DELETE" });
             } else {
@@ -267,6 +336,11 @@ export default function DetailPage({ mediaType }) {
                             </span>
                         ))}
                         {runtime && <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>⏱ {runtime}</span>}
+                        {activeMediaType === "tv" && data.number_of_seasons && (
+                            <span className="detail-genre-pill">
+                                📺 {data.number_of_seasons} Sezon • {data.number_of_episodes || "?"} Bölüm
+                            </span>
+                        )}
                     </div>
 
                     <div style={{ marginBottom: "20px" }}>
@@ -278,7 +352,9 @@ export default function DetailPage({ mediaType }) {
 
                     {directors.length > 0 && (
                         <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-                            <strong style={{ color: "white" }}>Yönetmen: </strong>
+                            <strong style={{ color: "white" }}>
+                                {activeMediaType === "tv" ? "Yaratıcı / Yönetmen: " : "Yönetmen: "}
+                            </strong>
                             {directors.join(", ")}
                         </p>
                     )}
@@ -367,34 +443,172 @@ export default function DetailPage({ mediaType }) {
                 </section>
             )}
 
-            {/* Dizi Sezonları */}
+            {/* Dizi Sezon ve Bölüm Rehberi (İnteraktif Sezon Seçici + Akordeon Bölüm Listesi) */}
             {activeMediaType === "tv" && seasons.length > 0 && (
-                <section style={{ marginBottom: "40px" }}>
-                    <h3 style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>📑</span> Sezonlar
-                    </h3>
-                    <div style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px" }}>
-                        {seasons.map((season) => (
-                            <div
-                                key={season.season_number}
-                                style={{
-                                    minWidth: "160px",
-                                    padding: "16px",
-                                    background: "var(--bg-card)",
-                                    border: "1px solid var(--border-subtle)",
-                                    borderRadius: "var(--radius-md)",
-                                }}
-                            >
-                                <strong style={{ fontSize: "1rem" }}>{season.name}</strong>
-                                <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "6px" }}>
-                                    {season.episode_count} Bölüm
-                                </p>
-                                {season.air_date && (
-                                    <small style={{ color: "var(--text-muted)" }}>{season.air_date.substring(0, 4)}</small>
-                                )}
-                            </div>
-                        ))}
+                <section style={{ marginBottom: "44px" }}>
+                    <div className="season-guide-header">
+                        <h3 style={{ display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
+                            <span>📑</span> Sezon ve Bölüm Rehberi
+                        </h3>
+                        <span className="season-guide-hint">
+                            Bölüm özetlerini ve görsellerini görmek için bir sezona tıklayın
+                        </span>
                     </div>
+
+                    {/* Tıklanabilir Sezon Kartları */}
+                    <div className="season-cards-strip">
+                        {seasons.map((season) => {
+                            const isSelected = selectedSeason === season.season_number;
+                            return (
+                                <button
+                                    key={season.season_number}
+                                    type="button"
+                                    onClick={() => handleSeasonClick(season.season_number)}
+                                    className={`season-selector-card ${isSelected ? "active" : ""}`}
+                                    aria-expanded={isSelected}
+                                >
+                                    {season.poster && (
+                                        <img
+                                            src={season.poster}
+                                            alt={season.name}
+                                            className="season-selector-poster"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = "none";
+                                            }}
+                                        />
+                                    )}
+                                    <div className="season-selector-info">
+                                        <div className="season-selector-top">
+                                            <strong>{season.name}</strong>
+                                            <span className="season-selector-chevron">
+                                                {isSelected ? "▾" : "▸"}
+                                            </span>
+                                        </div>
+                                        <p className="season-selector-count">
+                                            {season.episode_count} Bölüm
+                                        </p>
+                                        {season.air_date && (
+                                            <small className="season-selector-year">
+                                                {season.air_date.substring(0, 4)}
+                                            </small>
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Seçili Sezonun Bölüm Listesi (Akordeon Paneli) */}
+                    {selectedSeason !== null && (
+                        <div className="season-episodes-panel animate-fade-in">
+                            {isSeasonLoading ? (
+                                <div className="season-loading-box">
+                                    <div className="autocomplete-mini-spinner" />
+                                    <span>Sezon bölümleri yükleniyor...</span>
+                                </div>
+                            ) : seasonError ? (
+                                <ErrorBox message={seasonError.message} />
+                            ) : seasonDetail ? (
+                                <>
+                                    <div className="season-panel-top">
+                                        <div>
+                                            <div className="season-panel-title-row">
+                                                <h4>{seasonDetail.name || `${selectedSeason}. Sezon`}</h4>
+                                                <span className="season-episode-total-badge">
+                                                    {rawEpisodes.length} Bölüm
+                                                </span>
+                                            </div>
+                                            {seasonDetail.overview && (
+                                                <p className="season-panel-overview">
+                                                    {seasonDetail.overview}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="season-panel-actions">
+                                            {rawEpisodes.length > 5 && (
+                                                <input
+                                                    type="text"
+                                                    value={episodeSearch}
+                                                    onChange={(e) => setEpisodeSearch(e.target.value)}
+                                                    placeholder="Bölüm ara..."
+                                                    className="episode-filter-input"
+                                                />
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedSeason(null)}
+                                                className="season-close-btn"
+                                                title="Bölüm rehberini kapat"
+                                            >
+                                                ✕ Kapat
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {filteredEpisodes.length === 0 ? (
+                                        <p style={{ color: "var(--text-muted)", padding: "16px 0" }}>
+                                            Aramanızla eşleşen bölüm bulunamadı.
+                                        </p>
+                                    ) : (
+                                        <div className="episodes-list">
+                                            {filteredEpisodes.map((ep) => (
+                                                <article
+                                                    key={ep.episode_number}
+                                                    className="episode-card"
+                                                >
+                                                    <div className="episode-still-wrap">
+                                                        <img
+                                                            src={ep.still || FALLBACK_STILL}
+                                                            alt={`${ep.episode_number}. Bölüm: ${ep.name}`}
+                                                            className="episode-still-img"
+                                                            loading="lazy"
+                                                            onError={(e) => {
+                                                                e.currentTarget.src = FALLBACK_STILL;
+                                                            }}
+                                                        />
+                                                        <span className="episode-number-badge">
+                                                            {ep.episode_number}. Bölüm
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="episode-card-body">
+                                                        <div className="episode-card-header">
+                                                            <h5 className="episode-title">
+                                                                {ep.name || `${ep.episode_number}. Bölüm`}
+                                                            </h5>
+                                                            <div className="episode-meta-badges">
+                                                                {ep.rating > 0 && (
+                                                                    <span className="rating-badge">
+                                                                        ★ {Number(ep.rating).toFixed(1)}
+                                                                    </span>
+                                                                )}
+                                                                {ep.runtime && (
+                                                                    <span className="episode-meta-pill">
+                                                                        ⏱ {ep.runtime} dk
+                                                                    </span>
+                                                                )}
+                                                                {ep.air_date && (
+                                                                    <span className="episode-meta-pill">
+                                                                        📅 {formatTurkishDate(ep.air_date)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <p className="episode-overview">
+                                                            {ep.overview ||
+                                                                "Bu bölüm için henüz Türkçe özet eklenmemiş."}
+                                                        </p>
+                                                    </div>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            ) : null}
+                        </div>
+                    )}
                 </section>
             )}
 

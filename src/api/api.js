@@ -36,27 +36,41 @@ export const apiFetch = async (endpoint, options = {}) => {
     return response.json();
 };
 
+export const getCatalogHome = () => {
+    return apiFetch("/catalog/home");
+};
 
+export const getTvSeasonDetail = (tvId, seasonNumber) => {
+    return apiFetch(`/catalog/tv/${encodeURIComponent(tvId)}/season/${encodeURIComponent(seasonNumber)}`);
+};
 
 export const getRecommendations = () => {
-    return apiFetch('/recommendations');
+    return apiFetch("/recommendations");
 };
 
 export const markRecommendationsAsRead = () => {
-    return apiFetch('/recommendations/read', { method: 'PATCH' });
+    return apiFetch("/recommendations/read", { method: "PATCH" });
 };
 
 export const getFeedbackIds = () => {
-    return apiFetch('/feedback/ids');
+    return apiFetch("/feedback/ids");
 };
 
 export const getFeedbackStats = () => {
-    return apiFetch('/feedback/stats');
+    return apiFetch("/feedback/stats");
+};
+
+export const getProfilePersona = () => {
+    return apiFetch("/profile/persona");
+};
+
+export const refreshProfilePersona = () => {
+    return apiFetch("/profile/refresh", { method: "POST" });
 };
 
 export const sendFeedback = ({ movieId, title, feedback, source = "chat", sessionId = null }) => {
-    return apiFetch('/feedback', {
-        method: 'POST',
+    return apiFetch("/feedback", {
+        method: "POST",
         body: JSON.stringify({
             movie_id: String(movieId),
             title,
