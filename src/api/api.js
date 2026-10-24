@@ -48,6 +48,12 @@ export const getRecommendations = () => {
     return apiFetch("/recommendations");
 };
 
+export const generateRecommendations = (count = 3) => {
+    return apiFetch(`/recommendations/generate?count=${count}`, {
+        method: "POST",
+    });
+};
+
 export const markRecommendationsAsRead = () => {
     return apiFetch("/recommendations/read", { method: "PATCH" });
 };
